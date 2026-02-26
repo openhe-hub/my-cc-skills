@@ -10,12 +10,12 @@
 
 ## 使用方式
 
-将 `skills/<skill-name>/skill.md` 复制到你项目的 `.claude/skills/` 目录下即可。
+将 `skills/<skill-name>/SKILL.md` 复制到你项目的 `.claude/skills/<skill-name>/SKILL.md` 即可。
 
 ## Skill 目录结构
 
 ```
 skills/<skill-name>/
-├── skill.md      # skill prompt 文件
+├── SKILL.md      # skill prompt 文件
 └── README.md     # 用法说明
 ```
