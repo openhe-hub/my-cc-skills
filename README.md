@@ -1,21 +1,22 @@
 # My Claude Code Skills
 
-个人 Claude Code Skills 合集。
+A personal collection of Claude Code Skills.
 
-## Skills 列表
+## Skills
 
-| Skill | 说明 |
-|-------|------|
+| Skill | Description |
+|-------|-------------|
 | [air-dgx](skills/air-dgx/) | Manage AIR DGX Spark Cluster — check node/GPU status, submit Slurm jobs, generate sbatch scripts |
+| [scheduled-agent](skills/scheduled-agent/) | Set up unattended scheduled Claude Code jobs — generate cron/systemd templates, CLAUDE.md rules, hooks, and job scripts using `claude -p` headless mode |
 
-## 使用方式
+## Usage
 
-将 `skills/<skill-name>/SKILL.md` 复制到你项目的 `.claude/skills/<skill-name>/SKILL.md` 即可。
+Copy `skills/<skill-name>/SKILL.md` to your project's `.claude/skills/<skill-name>/SKILL.md`.
 
-## Skill 目录结构
+## Directory Structure
 
 ```
 skills/<skill-name>/
-├── SKILL.md      # skill prompt 文件
-└── README.md     # 用法说明
+├── SKILL.md      # skill prompt file
+└── README.md     # usage documentation
 ```
