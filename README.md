@@ -11,6 +11,12 @@ A personal collection of Claude Code Skills.
 | [labssh](skills/labssh/) | Manage SSH host book — list, search, connect to lab servers, run remote commands by short name without memorizing IPs |
 | [torch-hpc](skills/torch-hpc/) | NYU Torch HPC cluster access and Slurm job management — connect via SSH jump host, submit GPU jobs, check status on A100/H100/H200 partitions |
 
+## Thirdparty Skills
+
+| Skill | Description | Install |
+|-------|-------------|---------|
+| [converter](https://skills.sh/boshu2/agentops/converter) | Cross-platform skill converter — parse skills into universal bundle format, then convert to Codex, Cursor, etc. | `npx skills add boshu2/agentops@converter -g -y` |
+
 ## Usage
 
 Copy `skills/<skill-name>/SKILL.md` to your project's `.claude/skills/<skill-name>/SKILL.md`.
