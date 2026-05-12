@@ -12,34 +12,36 @@ Access to NYU Torch HPC is via SSH control socket multiplexing through a jump ho
 
 **Connection chain:**
 ```
-Local machine → chatsign@172.28.235.123 (jump host) → NYU Torch HPC
+Local machine → nyu-127 (jump host, nyuair@172.28.32.47) → NYU Torch HPC
 ```
 
 **SSH command pattern:**
 ```bash
-ssh chatsign@172.28.235.123 "ssh nyu-hpc-<user> '<command>'"
+ssh nyu-127 "ssh <user>-torch '<command>'"
 ```
 
-The jump host (`172.28.235.123`, hostname `Office-Mini-Nextto-Studio.local`) has SSH config entries with `ControlMaster auto` and `ControlPersist yes`.
+The jump host is reachable via the local SSH alias `nyu-127` (`nyuair@172.28.32.47`). On the jump host, the per-user aliases `yf23-torch` and `zl6890-torch` have `ControlMaster auto` and `ControlPersist yes`, multiplexing over `login.torch.hpc.nyu.edu:22`.
 
 **Prerequisites:** The user must have an active SSH control socket on the jump host. Verify with:
 ```bash
-ssh chatsign@172.28.235.123 "ls -la /tmp/ssh-nyu-hpc-*"
+ssh nyu-127 "ls -la /home/nyuair/.ssh/sockets/"
 ```
-If a socket does not exist, instruct the user to open a terminal on the jump host and run `ssh nyu-hpc-<user>` to establish the master connection.
+If a socket does not exist, instruct the user to open a terminal on the jump host and run `ssh <user>-torch` to establish the master connection.
+
+**Important:** Do not kill the root SSH connection to `nyu-127` — the per-user sockets live on the jump host and rely on the user-managed control master being up.
 
 ## HPC Accounts
 
 Both accounts share the same Slurm project and login node.
 
-| SSH Config Name | HPC User | Control Socket | Home Directory |
-|-----------------|----------|----------------|----------------|
-| `nyu-hpc-yf23` | `yf23` | `/tmp/ssh-nyu-hpc-yf23` | `/home/yf23` |
-| `nyu-hpc-zl6890` | `zl6890` | `/tmp/ssh-nyu-hpc-zl6890` | `/home/zl6890` |
+| SSH Config Name (on jump host) | HPC User | Control Socket (on jump host) | Home Directory |
+|--------------------------------|----------|-------------------------------|----------------|
+| `yf23-torch` | `yf23` | `/home/nyuair/.ssh/sockets/yf23@login.torch.hpc.nyu.edu-22` | `/home/yf23` |
+| `zl6890-torch` | `zl6890` | `/home/nyuair/.ssh/sockets/zl6890@login.torch.hpc.nyu.edu-22` | `/home/zl6890` |
 
-**HPC login node:** `torch-login-0.hpc-infra.svc.cluster.local`
+**HPC login node:** `login.torch.hpc.nyu.edu` (round-robin; resolves to `torch-login-b-1` / `torch-login-b-2` etc.)
 
-**Default account:** Use `yf23` (`nyu-hpc-yf23`) unless the user explicitly specifies `zl6890`.
+**Default account:** Use `yf23` (`yf23-torch`) unless the user explicitly specifies `zl6890`.
 
 ## Slurm Account
 
@@ -254,7 +256,7 @@ sinfo -p a100_tandon
 
 ## Execution Notes
 
-- All commands must be wrapped in the double-SSH pattern: `ssh chatsign@172.28.235.123 "ssh nyu-hpc-yf23 '...'"`
+- All commands must be wrapped in the double-SSH pattern: `ssh nyu-127 "ssh yf23-torch '...'"`
 - For multi-line scripts, create the file on the HPC first with heredoc, then sbatch it
 - Escape special characters properly when nesting SSH commands (use single quotes inside double quotes)
 - Job output files are written to the directory from which `sbatch` was run (default: home directory)
