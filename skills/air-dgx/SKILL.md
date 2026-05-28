@@ -57,7 +57,10 @@ Both mounts are available on the login node AND all compute nodes:
 | `/media/cvpr` | Large shared CVPR mount | `//rcsfileshare.abudhabi.nyu.edu/mmvc-large` |
 | `/media/aml` | Large shared AML mount | `//rcsfileshare.abudhabi.nyu.edu/mmvc-large-2` |
 
-Always store code, data, logs, and Python environments on shared storage, not under `/home` or `/tmp`.
+Always store code, data, logs, and final Python environments on shared storage,
+not under `/home` or persistent local node paths. It is OK, and often necessary,
+to use compute-node `/tmp` as temporary build/cache space while creating an
+environment, then copy the finished environment to shared storage.
 
 ### Conda and Python Environments
 
@@ -73,9 +76,13 @@ When setting up or repairing a conda environment:
 
 1. SSH to `dgx-login`.
 2. Allocate a compute node with Slurm.
-3. Create or update the environment on that compute node.
-4. Put the finished environment directory under `/media/cvpr/zhewen/envs/<name>_env`.
-5. Validate imports and CUDA with `srun` on a compute node before using the environment in jobs.
+3. Create or update the environment on that compute node, preferably in a
+   temporary path under `/tmp`.
+4. Copy the finished environment directory to
+   `/media/cvpr/zhewen/envs/<name>_env` or the user-specified shared-storage
+   prefix.
+5. Validate imports and CUDA with `srun` on a compute node before using the
+   environment in jobs.
 
 Example interactive setup flow:
 
@@ -85,9 +92,26 @@ mkdir -p /media/cvpr/zhewen/envs
 srun -p spark -N1 -n1 --cpus-per-task=4 --mem=16G --gres=gpu:1 --time=02:00:00 --pty bash -l
 
 # Now running on a compute node, not dgx-login:
-conda create -y -p /media/cvpr/zhewen/envs/<name>_env python=3.10
-source /media/cvpr/zhewen/envs/<name>_env/bin/activate
-python -c "import platform; print(platform.machine())"
+export ENV_PREFIX=/media/cvpr/zhewen/envs/<name>_env
+export TMP_ENV=/tmp/<name>_env-$USER
+export CONDA_PKGS_DIRS=/tmp/<name>-conda-pkgs-$USER
+export PIP_CACHE_DIR=/tmp/<name>-pip-cache-$USER
+
+rm -rf "$TMP_ENV"
+python -m conda create -y -p "$TMP_ENV" python=3.10 pip
+"$TMP_ENV/bin/python" -m pip install <packages>
+
+rm -rf "$ENV_PREFIX"
+mkdir -p "$ENV_PREFIX"
+(
+  cd "$TMP_ENV"
+  tar -chf - .
+) | (
+  cd "$ENV_PREFIX"
+  tar --no-same-owner --no-same-permissions --touch -xf -
+)
+
+"$ENV_PREFIX/bin/python" -c "import platform; print(platform.machine())"
 ```
 
 If an environment is built or downloaded as a directory named `<name>_env/`, place that directory at `/media/cvpr/zhewen/envs/<name>_env/` and validate it via Slurm. Use the explicit interpreter path in repeated checks and jobs, for example:
@@ -95,6 +119,78 @@ If an environment is built or downloaded as a directory named `<name>_env/`, pla
 ```bash
 /media/cvpr/zhewen/envs/<name>_env/bin/python -c "import torch; print(torch.__version__)"
 ```
+
+#### Robust Environment Bootstrap Pattern
+
+Use this pattern when conda or pip behaves strangely on `/media/cvpr`,
+`/media/aml`, `/CVPR`, or `/AML`.
+
+- The final env should live on shared storage, but do the actual conda/pip
+  install in compute-node `/tmp`.
+- Keep `CONDA_PKGS_DIRS`, `PIP_CACHE_DIR`, and other build caches on `/tmp`.
+- Use explicit Python paths such as `"$ENV_PREFIX/bin/python"` rather than
+  relying on shell activation.
+- If the base `conda` script has a broken shebang, call conda through Python:
+
+```bash
+/path/to/miniforge/bin/python -m conda create -y -p "$TMP_ENV" python=3.10 pip
+```
+
+- Copy the finished env with `tar -h` so conda symlinks are dereferenced:
+
+```bash
+(
+  cd "$TMP_ENV"
+  tar -chf - .
+) | (
+  cd "$ENV_PREFIX"
+  tar --no-same-owner --no-same-permissions --touch -xf -
+)
+```
+
+- CIFS metadata errors such as the following can be non-fatal if `bin/python`
+  exists and a compute-node import/CUDA validation passes:
+
+```text
+tar: .: Cannot change mode to ...: Operation not permitted
+```
+
+- Do not accept the environment as ready just because copying finished. Always
+  run a fresh `srun` validation on a compute node.
+
+#### Shared-Storage Pitfalls
+
+The shared mounts are CIFS-backed and can reject operations that work on local
+Linux filesystems.
+
+- Direct `conda create -p /media/...` may fail on symlinks.
+- Direct `pip install` into `/media/...` may fail when pip creates temporary
+  files in `site-packages`.
+- `rsync` may fail because it creates hidden dot-temp files.
+- Metadata operations such as `chmod`, `utime`, and ownership restoration may
+  fail. Prefer `tar --no-same-owner --no-same-permissions --touch`.
+- The mount can temporarily return `Host is down`. If that happens, stop
+  writing to it, verify the mount with `df -h` and `ls -ld`, then resume after
+  it recovers.
+
+When reducing env size before copying, pruning package tests and caches is OK,
+but be conservative. Do not remove runtime-imported internals just because a
+directory name looks like tests; for example, some PyTorch versions import
+`torch.testing._internal` during normal runtime paths.
+
+#### Package Compatibility Checks
+
+For GPU/compiled Python packages on DGX:
+
+- Confirm wheels are `linux_aarch64`/ARM-compatible before installing.
+- Prefer CUDA 13-compatible wheels for GB10 nodes when available.
+- Validate compiled packages with real imports on a compute node, not on
+  `dgx-login`.
+- If an import fails after install, check ABI mismatches such as NumPy 1.x vs
+  2.x before reinstalling the whole environment.
+- For ONNX export stacks, check exporter-time dependencies separately from
+  simple imports; a package may import successfully but fail during model
+  export because a helper package is missing.
 
 ## Common Actions
 
