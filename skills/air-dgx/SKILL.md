@@ -24,6 +24,48 @@ ssh nyu-118 'ssh dgx-login "squeue -u cvpr"'
 
 - Treat `nyu-127` and `nyu-118` as relay hosts only; Slurm commands and DGX filesystem work should still run on `dgx-login`.
 
+## Two Distinct DGX Targets
+
+There are **two separate things** under this skill — do not confuse them:
+
+1. **The Spark Cluster** (`dgx-login`) — a 30-node Slurm cluster. Use `sbatch`/`squeue`/`sinfo`. This is the default; everything below the "Cluster Overview" heading is about this.
+2. **`kinesis`** — a **standalone single-node DGX Spark**, NOT part of the Slurm cluster. No scheduler — you run commands directly over SSH. See the section below.
+
+If the user mentions **kinesis** (or `dgx-kinesis`), target the standalone node and do **not** use Slurm. Otherwise, default to the cluster.
+
+## kinesis — Standalone Single-Node DGX
+
+A separate, self-contained DGX Spark box (not in `spark-cluster`, no Slurm). Run commands directly:
+
+```bash
+ssh dgx-kinesis "<command>"
+```
+
+- **Alias:** `dgx-kinesis` (passwordless; configured in `~/.ssh/config`)
+- **Hostname:** `spark-bd45`
+- **Address:** `10.228.195.86`, user `kinesis`
+- **Access path:** local → `nyu-127` (ProxyJump) → `spark-bd45` (lab LAN 10.228.x)
+- **Auth:** key-based via `~/.ssh/id_ed25519` (no password)
+
+### Specs
+
+| Resource | Value |
+|----------|-------|
+| Model | NVIDIA DGX Spark — GB10 (Grace Blackwell) |
+| OS | Ubuntu 24.04.3 LTS, kernel 6.11.0-nvidia |
+| CPU | 20 cores, aarch64 (Grace: Cortex-X925 + A725) |
+| Memory | 119 GB unified |
+| GPU | 1 x NVIDIA GB10, driver 580.95.05 |
+| Disk | 3.7 TB NVMe (local) |
+
+### Notes for kinesis
+
+- **No Slurm.** Run jobs directly: `ssh dgx-kinesis "python train.py"`. Do not use `sbatch`/`squeue`/`sinfo`.
+- **No shared `/CVPR`, `/AML`, or `/media/*` mounts** — storage is local (3.7 TB NVMe under `/` and `/home/kinesis`).
+- Still **ARM64 (aarch64)** — all packages/binaries must be ARM-compatible.
+- CUDA toolkit (`nvcc`) is **not** installed by default — only the GPU driver/runtime. Install a toolkit or use containers if you need to compile.
+- Check status directly: `ssh dgx-kinesis "nvidia-smi"`, `ssh dgx-kinesis "uptime; free -h; df -h /"`.
+
 ## Cluster Overview
 
 - **Cluster Name:** spark-cluster
@@ -339,12 +381,19 @@ srun python -m torch.distributed.launch \
 
 ## Handling User Requests
 
-- If the user says **"$ARGUMENTS"**, interpret it as a cluster action:
-  - `status` / `info` → run `sinfo` and `squeue`
-  - `jobs` / `queue` → run `squeue -u cvpr`
-  - `nodes` → run `sinfo -N -l`
-  - `disk` → run `df -h /CVPR /AML`
-  - `submit <path>` → run `sbatch <path>`
-  - `cancel <id>` → run `scancel <id>`
-  - `log <path>` → read the log file
+- First decide the **target**: if the request mentions `kinesis` / `dgx-kinesis`, act on the standalone node via `ssh dgx-kinesis "<cmd>"` (no Slurm). Otherwise act on the Slurm cluster via `ssh dgx-login`.
+- If the user says **"$ARGUMENTS"**, interpret it as an action:
+  - **On the cluster (`dgx-login`):**
+    - `status` / `info` → run `sinfo` and `squeue`
+    - `jobs` / `queue` → run `squeue -u cvpr`
+    - `nodes` → run `sinfo -N -l`
+    - `disk` → run `df -h /CVPR /AML`
+    - `submit <path>` → run `sbatch <path>`
+    - `cancel <id>` → run `scancel <id>`
+    - `log <path>` → read the log file
+  - **On kinesis (`dgx-kinesis`):**
+    - `status` / `info` → run `nvidia-smi` and `uptime`
+    - `gpu` → run `nvidia-smi`
+    - `disk` → run `df -h /`
+    - run any command directly: `ssh dgx-kinesis "<cmd>"`
   - Otherwise, interpret the intent and act accordingly
