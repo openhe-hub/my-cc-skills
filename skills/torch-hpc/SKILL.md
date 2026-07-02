@@ -43,6 +43,26 @@ Both accounts share the same Slurm project and login node.
 
 **Default account:** Use `yf23` (`yf23-torch`) unless the user explicitly specifies `zl6890`.
 
+## Storage / Filesystems
+
+All user-visible filesystems are VAST NFS, mounted from `vast-eth.torch.hpc.nyu.edu`.
+
+| Mount | Env var | Backed up | Auto-purged | Quota / user | Purpose |
+|-------|---------|-----------|-------------|--------------|---------|
+| `/home/<user>` | `$HOME` | YES | NO | 50 GB / 30K files | Code, dotfiles, small configs |
+| `/scratch/<user>` | `$SCRATCH` | NO | **YES** | 5 TB / 5M files | Datasets, checkpoints, conda envs, training output |
+| `/archive/<user>` | `$ARCHIVE` | YES | NO | 2 TB / 20K files | Long-term retention of final results |
+| `/share/apps` | — | — | — | — | Read-only shared software / modules |
+| `/projects` | — | — | — | — | Project-shared workspace |
+
+**Quota check:** `myquota` (at `/share/apps/local/bin/myquota`) prints one-line usage for `/home`, `/scratch`, `/archive`. Do **not** use `quota -s` — it errors on NFS with `Operation not permitted`.
+
+**Usage guidance:**
+- Install miniconda / large conda envs in `/scratch/<user>/miniconda3/` — `/home` is only 50 GB and easily blown by a single env.
+- Datasets and training outputs belong in `/scratch/<user>/`. `/scratch` is **not backed up** and is **auto-purged** (purge policy not yet documented in this skill — verify before relying on long-term `/scratch` storage).
+- Move anything you want to keep permanently into `/archive/<user>/` before it ages out of `/scratch`.
+- `/share/apps` holds shared software (e.g. `myquota` lives at `/share/apps/local/bin/`).
+
 ## Slurm Account
 
 - **Account:** `torch_pr_769_tandon_advanced`
