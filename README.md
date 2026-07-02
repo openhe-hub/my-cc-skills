@@ -12,6 +12,7 @@ A personal collection of Claude Code Skills.
 | [torch-hpc](skills/torch-hpc/) | NYU Torch HPC cluster access and Slurm job management — connect via SSH jump host, submit GPU jobs, check status on A100/H100/H200 partitions |
 | [handoff](skills/handoff/) | Generate a detailed handoff prompt so the next conversation can quickly pick up where this one left off |
 | [sync-zotero](skills/sync-zotero/) | Bidirectional Zotero PDF storage sync between local Mac and remote SSH host via rsync |
+| [literature-search-arxiv](skills/literature-search-arxiv/) | Search arXiv for papers, extract metadata/abstracts, download full-text PDF/HTML or LaTeX source, with built-in rate limiting |
 
 ## Thirdparty Skills
 
